@@ -13,6 +13,19 @@ package MyStringTokeniser with SPARK_Mode is
      (Ch = ' ' or Ch = Ada.Characters.Latin_1.LF or
         Ch = Ada.Characters.Latin_1.HT);
 
+   -- The Tokenise procedure splits a string into whitespace-separated tokens,
+   -- storing each token´s position (start and length) into the output Tokens array.
+   --
+   -- Postconditions:
+   -- - Count (number of tokens found) never exceeds the array size of Tokens.
+   -- - Each token written to the array has:
+   --   1. A starting index within the bounds of the input string,
+   --   2. A positive, non-zero length,
+   --   3. A range that doesn't run past the end of the input string.
+   --
+   -- These postconditions ensure we never write outside the array bounds,
+   -- and that each token stored is meaningful and valid.
+
    procedure Tokenise(S : in String; Tokens : in out TokenArray; Count : out Natural) with
      Pre => (if S'Length > 0 then S'First <= S'Last) and Tokens'First <= Tokens'Last,
      Post => Count <= Tokens'Length and

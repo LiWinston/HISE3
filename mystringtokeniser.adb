@@ -9,8 +9,8 @@ package body MyStringTokeniser with SPARK_Mode is
       Processed : Natural := 0;
       OutIndex : Integer := Tokens'First;
    begin
-      Count := 0;
       if (S'First > S'Last) then
+         Count := Processed;
          return;
       end if;
       Index := S'First;
@@ -52,6 +52,7 @@ package body MyStringTokeniser with SPARK_Mode is
 
             -- check for end of string, avoids overflow when incrementing Index
             if S'Last - Extent.Length < Index then
+               Count := Processed;
                return;
             else
                Index := Index + Extent.Length;
