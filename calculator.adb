@@ -3,6 +3,7 @@ with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 with MyStringTokeniser;
 with StringToInteger;
 with MyString;
+with Interfaces; use Interfaces;
 
 package body Calculator with SPARK_Mode is
 

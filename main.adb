@@ -43,6 +43,7 @@ with MyCommandLine;
 with MyString;
 with PIN;
 with Calculator;
+use Calculator;
 with Ada.Text_IO; use Ada.Text_IO;
 
 procedure Main is
