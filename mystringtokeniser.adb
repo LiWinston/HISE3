@@ -15,12 +15,20 @@ package body MyStringTokeniser with SPARK_Mode is
       end if;
       Index := S'First;
       while OutIndex <= Tokens'Last and Index <= S'Last and Processed < Tokens'Length loop
+
+         -- This loop invariant ensures that for all tokens we've already written,
+         -- their start positions are within the bounds of the input string,
+         -- they are not empty (Length > 0),
+         -- and their full range (Start + Length - 1) stays within the input.
          pragma Loop_Invariant
            (for all J in Tokens'First..OutIndex-1 =>
               (Tokens(J).Start >= S'First and
                    Tokens(J).Length > 0) and then
             Tokens(J).Length-1 <= S'Last - Tokens(J).Start);
 
+         -- This invariant keeps track of how many tokens have been processed.
+         -- It guarantees that OutIndex always points to the next available slot
+         -- in the output array and prevents writing out of bounds.
          pragma Loop_Invariant (OutIndex = Tokens'First + Processed);
 
          -- look for start of next token

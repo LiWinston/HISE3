@@ -1,4 +1,5 @@
 *.db
 /obj
+.DS_Store
 作业需求文档.md
 计算器实现分析.md
