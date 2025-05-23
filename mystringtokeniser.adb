@@ -1,4 +1,3 @@
-
 package body MyStringTokeniser with SPARK_Mode is
 
 
@@ -26,9 +25,17 @@ package body MyStringTokeniser with SPARK_Mode is
                    Tokens(J).Length > 0) and then
             Tokens(J).Length-1 <= S'Last - Tokens(J).Start);
 
-         -- This invariant keeps track of how many tokens have been processed.
-         -- It guarantees that OutIndex always points to the next available slot
-         -- in the output array and prevents writing out of bounds.
+         -- This invariant maintains the critical relationship between OutIndex and Processed,
+         -- which is essential for formal verification for several reasons:
+         -- 1. It establishes a precise correspondence between the next available position 
+         --    in Tokens array (OutIndex) and the number of tokens processed (Processed).
+         -- 2. It enables the SPARK prover to verify that we never write beyond the bounds
+         --    of the Tokens array by ensuring OutIndex increases synchronously with Processed.
+         -- 3. It helps verify that we never skip positions or overwrite existing tokens.
+         -- 4. Without this invariant, the SPARK prover cannot establish that the array 
+         --    access at Tokens(OutIndex) is safe and within bounds.
+         -- 5. It contributes to proving the postcondition that exactly Count tokens 
+         --    have been properly written to the array.
          pragma Loop_Invariant (OutIndex = Tokens'First + Processed);
 
          -- look for start of next token

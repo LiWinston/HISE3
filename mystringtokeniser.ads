@@ -14,17 +14,23 @@ package MyStringTokeniser with SPARK_Mode is
         Ch = Ada.Characters.Latin_1.HT);
 
    -- The Tokenise procedure splits a string into whitespace-separated tokens,
-   -- storing each token´s position (start and length) into the output Tokens array.
+   -- storing each token's position (start and length) into the output Tokens array.
    --
    -- Postconditions:
-   -- - Count (number of tokens found) never exceeds the array size of Tokens.
-   -- - Each token written to the array has:
-   --   1. A starting index within the bounds of the input string,
-   --   2. A positive, non-zero length,
-   --   3. A range that doesn't run past the end of the input string.
+   -- 1. Count <= Tokens'Length: Ensures the returned token count never exceeds 
+   --    the provided array size, preventing array bounds violations.
+   -- 
+   -- 2. For all valid token indices (Tokens'First..Tokens'First+(Count-1)):
+   --    a. Tokens(Index).Start >= S'First: Ensures each token's starting position
+   --       is within the bounds of the input string, preventing illegal memory access.
+   --    b. Tokens(Index).Length > 0: Ensures each token has at least one character
+   --       (non-empty), avoiding processing of meaningless tokens.
+   --    c. Tokens(Index).Length-1 <= S'Last - Tokens(Index).Start: Ensures each token's
+   --       range (Start to Start+Length-1) doesn't exceed the input string bounds,
+   --       preventing access beyond the string's end.
    --
-   -- These postconditions ensure we never write outside the array bounds,
-   -- and that each token stored is meaningful and valid.
+   -- These postconditions collectively guarantee memory safety and data integrity
+   -- by ensuring all operations remain within valid array and string boundaries.
 
    procedure Tokenise(S : in String; Tokens : in out TokenArray; Count : out Natural) with
      Pre => (if S'Length > 0 then S'First <= S'Last) and Tokens'First <= Tokens'Last,
