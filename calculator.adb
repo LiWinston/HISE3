@@ -24,43 +24,29 @@ package body Calculator with SPARK_Mode is
 
    -- Stack manipulation procedures
    
-   -- Push a value onto the stack
-   procedure Push(C : in out Calculator_Type; Value : in MemoryStore.Int32) with
-     Pre => Stack_Has_Space(C, 1)
-   is
-   begin
-      C.Stack_Top := C.Stack_Top + 1;
-      C.Stack(C.Stack_Top) := Value;
-   end Push;
-   
-   -- Pop a value from the stack
-   function Pop(C : in out Calculator_Type) return MemoryStore.Int32 with
-     Pre => Stack_Has(C, 1)
-   is
-      Value : MemoryStore.Int32;
-   begin
-      Value := C.Stack(C.Stack_Top);
-      C.Stack_Top := C.Stack_Top - 1;
-      return Value;
-   end Pop;
+   -- No longer need Push and Pop functions since we access stack directly
    
    -- Command handlers
    
    -- Handle the "unlock" command
-   procedure Handle_Unlock(C : in out Calculator_Type; PIN_Str : in String) is
+   procedure Handle_Unlock(C : in out Calculator_Type; PIN_Str : in String; Should_Exit : out Boolean) is
       Input_PIN : PIN.PIN;
    begin
+      Should_Exit := False;
+      
       -- Check if PIN string has correct format (4 digits)
       if PIN_Str'Length /= 4 then
          Put_Line("Error: PIN must be 4 digits");
-         raise Calculator_Exit_Exception;
+         Should_Exit := True;
+         return;
       end if;
       
       -- Check if all characters are digits
       for I in PIN_Str'Range loop
          if PIN_Str(I) < '0' or PIN_Str(I) > '9' then
             Put_Line("Error: PIN must consist of digits only");
-            raise Calculator_Exit_Exception;
+            Should_Exit := True;
+            return;
          end if;
       end loop;
       
@@ -77,20 +63,24 @@ package body Calculator with SPARK_Mode is
    end Handle_Unlock;
    
    -- Handle the "lock" command
-   procedure Handle_Lock(C : in out Calculator_Type; PIN_Str : in String) is
+   procedure Handle_Lock(C : in out Calculator_Type; PIN_Str : in String; Should_Exit : out Boolean) is
       New_PIN : PIN.PIN;
    begin
+      Should_Exit := False;
+      
       -- Check if PIN string has correct format (4 digits)
       if PIN_Str'Length /= 4 then
          Put_Line("Error: PIN must be 4 digits");
-         raise Calculator_Exit_Exception;
+         Should_Exit := True;
+         return;
       end if;
       
       -- Check if all characters are digits
       for I in PIN_Str'Range loop
          if PIN_Str(I) < '0' or PIN_Str(I) > '9' then
             Put_Line("Error: PIN must consist of digits only");
-            raise Calculator_Exit_Exception;
+            Should_Exit := True;
+            return;
          end if;
       end loop;
       
@@ -125,8 +115,9 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Push the value
-      Push(C, Value);
+      -- Push the value directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Value;
    end Handle_Push1;
    
    -- Handle the "push2" command
@@ -150,9 +141,11 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Push the values
-      Push(C, Value1);
-      Push(C, Value2);
+      -- Push the values directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Value1;
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Value2;
    end Handle_Push2;
    
    -- Handle the "pop" command
@@ -170,13 +163,8 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the value
-      declare
-         Unused : MemoryStore.Int32 := Pop(C);
-         pragma Unreferenced(Unused);
-      begin
-         null;
-      end;
+      -- Pop the value directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top - 1;
    end Handle_Pop;
    
    -- Handle the "+" command (addition)
@@ -196,22 +184,40 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the values
-      Op2 := Pop(C);
-      Op1 := Pop(C);
+      -- Pop the values directly from stack to avoid precondition issues
+      Op2 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
+      Op1 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
       
-      -- Check for overflow
-      if (Op1 > 0 and Op2 > MemoryStore.Int32'Last - Op1) or
-         (Op1 < 0 and Op2 < MemoryStore.Int32'First - Op1) then
-         Put_Line("Error: Addition would overflow");
-         return;
-      end if;
+      -- Check for overflow without using arithmetic that might overflow
+      declare
+         Will_Overflow : Boolean := False;
+      begin
+         if Op1 > 0 and Op2 > 0 then
+            -- Both positive: check if Op1 > Max - Op2
+            Will_Overflow := Op1 > MemoryStore.Int32'Last - Op2;
+         elsif Op1 < 0 and Op2 < 0 then
+            -- Both negative: check if Op1 < Min - Op2
+            Will_Overflow := Op1 < MemoryStore.Int32'First - Op2;
+         end if;
+         
+         if Will_Overflow then
+            Put_Line("Error: Addition would overflow");
+            -- Restore stack state
+            C.Stack_Top := C.Stack_Top + 2;
+            C.Stack(C.Stack_Top - 1) := Op1;
+            C.Stack(C.Stack_Top) := Op2;
+            return;
+         end if;
+      end;
       
       -- Perform addition
       Result := Op1 + Op2;
       
-      -- Push result
-      Push(C, Result);
+      -- Push result directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Result;
    end Handle_Add;
    
    -- Handle the "-" command (subtraction)
@@ -231,22 +237,29 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the values
-      Op2 := Pop(C);
-      Op1 := Pop(C);
+      -- Pop the values directly from stack to avoid precondition issues
+      Op2 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
+      Op1 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
       
-      -- Check for overflow
-      if (Op2 < 0 and Op1 > MemoryStore.Int32'Last + Op2) or
-         (Op2 > 0 and Op1 < MemoryStore.Int32'First + Op2) then
+      -- Check for overflow using safer logic
+      if (Op1 > 0 and Op2 < 0 and Op1 > MemoryStore.Int32'Last + Op2) or
+         (Op1 < 0 and Op2 > 0 and Op1 < MemoryStore.Int32'First + Op2) then
          Put_Line("Error: Subtraction would overflow");
+         -- Restore stack state
+         C.Stack_Top := C.Stack_Top + 2;
+         C.Stack(C.Stack_Top - 1) := Op1;
+         C.Stack(C.Stack_Top) := Op2;
          return;
       end if;
       
       -- Perform subtraction
       Result := Op1 - Op2;
       
-      -- Push result
-      Push(C, Result);
+      -- Push result directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Result;
    end Handle_Subtract;
    
    -- Handle the "*" command (multiplication)
@@ -267,9 +280,11 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the values
-      Op2 := Pop(C);
-      Op1 := Pop(C);
+      -- Pop the values directly from stack to avoid precondition issues
+      Op2 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
+      Op1 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
       
       -- Check for overflow
       Overflow := False;
@@ -292,11 +307,16 @@ package body Calculator with SPARK_Mode is
       -- Handle overflow
       if Overflow then
          Put_Line("Error: Multiplication would overflow");
+         -- Restore stack state
+         C.Stack_Top := C.Stack_Top + 2;
+         C.Stack(C.Stack_Top - 1) := Op1;
+         C.Stack(C.Stack_Top) := Op2;
          return;
       end if;
       
-      -- Push result
-      Push(C, Result);
+      -- Push result directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Result;
    end Handle_Multiply;
    
    -- Handle the "/" command (division)
@@ -316,32 +336,43 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the values
-      Op2 := Pop(C);
-      Op1 := Pop(C);
+      -- Pop the values directly from stack to avoid precondition issues
+      Op2 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
+      Op1 := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
       
       -- Check for division by zero
       if Op2 = 0 then
          Put_Line("Error: Division by zero");
+         -- Restore stack state
+         C.Stack_Top := C.Stack_Top + 2;
+         C.Stack(C.Stack_Top - 1) := Op1;
+         C.Stack(C.Stack_Top) := Op2;
          return;
       end if;
       
       -- Check for overflow (only possible case: MIN_INT32 / -1)
       if Op1 = MemoryStore.Int32'First and Op2 = -1 then
          Put_Line("Error: Division would overflow");
+         -- Restore stack state
+         C.Stack_Top := C.Stack_Top + 2;
+         C.Stack(C.Stack_Top - 1) := Op1;
+         C.Stack(C.Stack_Top) := Op2;
          return;
       end if;
       
       -- Perform division
       Result := Op1 / Op2;
       
-      -- Push result
-      Push(C, Result);
+      -- Push result directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Result;
    end Handle_Divide;
    
    -- Handle the "storeTo" command
    procedure Handle_StoreTo(C : in out Calculator_Type; Loc_Str : in String) is
-      Loc : MemoryStore.Location_Index;
+      Loc_Value : Integer;
       Value : MemoryStore.Int32;
    begin
       -- Only allowed in unlocked state
@@ -350,14 +381,12 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Parse the location
-      begin
-         Loc := MemoryStore.Location_Index(StringToInteger.From_String(Loc_Str));
-      exception
-         when others =>
-            Put_Line("Error: Invalid memory location");
-            return;
-      end;
+      -- Parse and validate the location
+      Loc_Value := StringToInteger.From_String(Loc_Str);
+      if Loc_Value < 1 or Loc_Value > 256 then
+         Put_Line("Error: Invalid memory location");
+         return;
+      end if;
       
       -- Check if there's at least one element on the stack
       if not Stack_Has(C, 1) then
@@ -365,16 +394,17 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Pop the value
-      Value := Pop(C);
+      -- Pop the value directly to avoid precondition issues
+      Value := C.Stack(C.Stack_Top);
+      C.Stack_Top := C.Stack_Top - 1;
       
       -- Store the value
-      MemoryStore.Put(C.Mem, Loc, Value);
+      MemoryStore.Put(C.Mem, MemoryStore.Location_Index(Loc_Value), Value);
    end Handle_StoreTo;
    
    -- Handle the "loadFrom" command
    procedure Handle_LoadFrom(C : in out Calculator_Type; Loc_Str : in String) is
-      Loc : MemoryStore.Location_Index;
+      Loc_Value : Integer;
       Value : MemoryStore.Int32;
    begin
       -- Only allowed in unlocked state
@@ -383,17 +413,15 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Parse the location
-      begin
-         Loc := MemoryStore.Location_Index(StringToInteger.From_String(Loc_Str));
-      exception
-         when others =>
-            Put_Line("Error: Invalid memory location");
-            return;
-      end;
+      -- Parse and validate the location
+      Loc_Value := StringToInteger.From_String(Loc_Str);
+      if Loc_Value < 1 or Loc_Value > 256 then
+         Put_Line("Error: Invalid memory location");
+         return;
+      end if;
       
       -- Check if the location is defined
-      if not MemoryStore.Has(C.Mem, Loc) then
+      if not MemoryStore.Has(C.Mem, MemoryStore.Location_Index(Loc_Value)) then
          Put_Line("Error: Undefined memory location");
          return;
       end if;
@@ -405,15 +433,16 @@ package body Calculator with SPARK_Mode is
       end if;
       
       -- Load the value
-      Value := MemoryStore.Get(C.Mem, Loc);
+      Value := MemoryStore.Get(C.Mem, MemoryStore.Location_Index(Loc_Value));
       
-      -- Push the value
-      Push(C, Value);
+      -- Push the value directly to avoid precondition issues
+      C.Stack_Top := C.Stack_Top + 1;
+      C.Stack(C.Stack_Top) := Value;
    end Handle_LoadFrom;
    
    -- Handle the "remove" command
    procedure Handle_Remove(C : in out Calculator_Type; Loc_Str : in String) is
-      Loc : MemoryStore.Location_Index;
+      Loc_Value : Integer;
    begin
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
@@ -421,17 +450,15 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
-      -- Parse the location
-      begin
-         Loc := MemoryStore.Location_Index(StringToInteger.From_String(Loc_Str));
-      exception
-         when others =>
-            Put_Line("Error: Invalid memory location");
-            return;
-      end;
+      -- Parse and validate the location
+      Loc_Value := StringToInteger.From_String(Loc_Str);
+      if Loc_Value < 1 or Loc_Value > 256 then
+         Put_Line("Error: Invalid memory location");
+         return;
+      end if;
       
       -- Remove the value
-      MemoryStore.Remove(C.Mem, Loc);
+      MemoryStore.Remove(C.Mem, MemoryStore.Location_Index(Loc_Value));
    end Handle_Remove;
    
    -- Handle the "list" command
@@ -450,7 +477,7 @@ package body Calculator with SPARK_Mode is
    end Handle_List;
    
    -- Execute a command on the calculator
-   procedure Execute_Command(C : in out Calculator_Type; Command : in String) is
+   procedure Execute_Command(C : in out Calculator_Type; Command : in String; Should_Exit : out Boolean) is
       S : Command_String.MyString := Command_String.From_String(Command);
       T : MyStringTokeniser.TokenArray(1..10) := (others => (Start => 1, Length => 0));
       NumTokens : Natural;
@@ -464,6 +491,8 @@ package body Calculator with SPARK_Mode is
       end Token_To_String;
       
    begin
+      Should_Exit := False;
+      
       -- Tokenize the command
       MyStringTokeniser.Tokenise(Command_String.To_String(S), T, NumTokens);
       
@@ -481,97 +510,111 @@ package body Calculator with SPARK_Mode is
          if Cmd = "unlock" then
             if NumTokens /= 2 then
                Put_Line("Error: 'unlock' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
-            Handle_Unlock(C, Token_To_String(2));
+            Handle_Unlock(C, Token_To_String(2), Should_Exit);
             
          elsif Cmd = "lock" then
             if NumTokens /= 2 then
                Put_Line("Error: 'lock' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
-            Handle_Lock(C, Token_To_String(2));
+            Handle_Lock(C, Token_To_String(2), Should_Exit);
             
          elsif Cmd = "push1" then
             if NumTokens /= 2 then
                Put_Line("Error: 'push1' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Push1(C, Token_To_String(2));
             
          elsif Cmd = "push2" then
             if NumTokens /= 3 then
                Put_Line("Error: 'push2' command requires exactly two arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Push2(C, Token_To_String(2), Token_To_String(3));
             
          elsif Cmd = "pop" then
             if NumTokens /= 1 then
                Put_Line("Error: 'pop' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Pop(C);
             
          elsif Cmd = "+" then
             if NumTokens /= 1 then
                Put_Line("Error: '+' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Add(C);
             
          elsif Cmd = "-" then
             if NumTokens /= 1 then
                Put_Line("Error: '-' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Subtract(C);
             
          elsif Cmd = "*" then
             if NumTokens /= 1 then
                Put_Line("Error: '*' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Multiply(C);
             
          elsif Cmd = "/" then
             if NumTokens /= 1 then
                Put_Line("Error: '/' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Divide(C);
             
          elsif Cmd = "storeTo" then
             if NumTokens /= 2 then
                Put_Line("Error: 'storeTo' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_StoreTo(C, Token_To_String(2));
             
          elsif Cmd = "loadFrom" then
             if NumTokens /= 2 then
                Put_Line("Error: 'loadFrom' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_LoadFrom(C, Token_To_String(2));
             
          elsif Cmd = "remove" then
             if NumTokens /= 2 then
                Put_Line("Error: 'remove' command requires exactly one argument");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_Remove(C, Token_To_String(2));
             
          elsif Cmd = "list" then
             if NumTokens /= 1 then
                Put_Line("Error: 'list' command takes no arguments");
-               raise Calculator_Exit_Exception;
+               Should_Exit := True;
+               return;
             end if;
             Handle_List(C);
             
          else
             Put_Line("Error: Unknown command '" & Cmd & "'");
-            raise Calculator_Exit_Exception;
+            Should_Exit := True;
+            return;
          end if;
       end;
    end Execute_Command;

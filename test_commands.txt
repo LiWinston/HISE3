@@ -1,0 +1,16 @@
+unlock 1234
+push1 7
+push1 3
++
+push1 5
+*
+storeTo 10
+loadFrom 10
+push1 20
+*
+storeTo 2
+list
+pop
+remove 10
+list
+lock 2345 

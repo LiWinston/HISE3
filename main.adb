@@ -56,6 +56,24 @@ procedure Main is
    
    -- Master PIN supplied from command line
    Master_PIN : PIN.PIN;
+   
+   -- Flag to indicate if we should exit
+   Should_Exit : Boolean := False;
+   
+   -- Procedure to handle command execution safely
+   procedure Execute_Safe_Command(C : in out Calculator.Calculator_Type; Command : in String; Exit_Flag : out Boolean) is
+   begin
+      Exit_Flag := False;
+      -- Check for exit conditions before executing
+      if Command'Length > 2048 then
+         Put_Line("Error: Command too long");
+         Exit_Flag := True;
+         return;
+      end if;
+      
+      Calculator.Execute_Command(C, Command, Exit_Flag);
+   end Execute_Safe_Command;
+   
 begin
    -- Check if master PIN is supplied
    if MyCommandLine.Argument_Count < 1 then
@@ -81,6 +99,10 @@ begin
          end if;
       end loop;
       
+      -- Assert that the precondition for PIN.From_String is met
+      pragma Assert (PIN_Str'Length = 4 and 
+                     (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9'));
+      
       -- Parse the PIN
       Master_PIN := PIN.From_String(PIN_Str);
    end;
@@ -89,7 +111,7 @@ begin
    Calculator.Init(Calc, Master_PIN);
    
    -- Main command loop
-   loop
+   while not Should_Exit loop
       -- Display prompt based on calculator state
       if Calculator.Get_State(Calc) = Calculator.Locked then
          Put("locked> ");
@@ -100,19 +122,7 @@ begin
       -- Read command
       Lines.Get_Line(S);
       
-      -- Execute command
-      begin
-         Calculator.Execute_Command(Calc, Lines.To_String(S));
-      exception
-         when Calculator.Calculator_Exit_Exception =>
-            -- Exit on invalid command or error
-            return;
-         when others =>
-            Put_Line("Error: Command execution failed");
-            return;
-      end;
+      -- Execute command safely
+      Execute_Safe_Command(Calc, Lines.To_String(S), Should_Exit);
    end loop;
-exception
-   when others =>
-      Put_Line("Error: An unexpected error occurred");
 end Main;

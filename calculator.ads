@@ -24,10 +24,8 @@ package Calculator with SPARK_Mode is
    
    -- Execute a command on the calculator
    -- This is the main interface to interact with the calculator
-   procedure Execute_Command(C : in out Calculator_Type; Command : in String);
-   
-   -- Exception to be raised when the calculator should exit
-   Calculator_Exit_Exception : exception;
+   -- Should_Exit will be set to True if the calculator should exit
+   procedure Execute_Command(C : in out Calculator_Type; Command : in String; Should_Exit : out Boolean);
    
    -- Security-related contract checking functions
    -- These functions are used to prove security properties
