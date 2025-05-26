@@ -58,4 +58,30 @@ package body StringToInteger with SPARK_MOde Is
       return Result;
    end From_String;
    
+   function Is_Valid(S : String) return Boolean is
+   begin
+      if S'Length = 0 then
+         return False;
+      end if;
+
+      if S(S'First) = '-' then
+         if S'Length = 1 then
+            return False;
+         end if;
+         for I in S'First + 1 .. S'Last loop
+            if S(I) < '0' or else S(I) > '9' then
+               return False;
+            end if;
+         end loop;
+      else
+         for I in S'Range loop
+            if S(I) < '0' or else S(I) > '9' then
+               return False;
+            end if;
+         end loop;
+      end if;
+
+      return True;
+   end Is_Valid;
+   
 end StringToInteger;   

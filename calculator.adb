@@ -97,12 +97,19 @@ package body Calculator with SPARK_Mode is
    end Handle_Lock;
    
    -- Handle the "push1" command
-   procedure Handle_Push1(C : in out Calculator_Type; Num_Str : in String) is
+   procedure Handle_Push1(C : in out Calculator_Type; Num_Str : in String; Should_Exit : out Boolean) is
       Value : MemoryStore.Int32;
    begin
+      Should_Exit := False;
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
          Put_Line("Error: Calculator is locked");
+         return;
+      end if;
+      
+      if not StringToInteger.Is_Valid(Num_Str) then
+         Put_Line("Error: Invalid number format");
+         Should_Exit := True;
          return;
       end if;
       
@@ -121,13 +128,20 @@ package body Calculator with SPARK_Mode is
    end Handle_Push1;
    
    -- Handle the "push2" command
-   procedure Handle_Push2(C : in out Calculator_Type; Num1_Str : in String; Num2_Str : in String) is
+   procedure Handle_Push2(C : in out Calculator_Type; Num1_Str : in String; Num2_Str : in String; Should_Exit : out Boolean) is
       Value1 : MemoryStore.Int32;
       Value2 : MemoryStore.Int32;
    begin
+      Should_Exit := False;
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
          Put_Line("Error: Calculator is locked");
+         return;
+      end if;
+      
+      if not StringToInteger.Is_Valid(Num1_Str) or else not StringToInteger.Is_Valid(Num2_Str) then
+         Put_Line("Error: Invalid number format");
+         Should_Exit := True;
          return;
       end if;
       
@@ -522,7 +536,10 @@ package body Calculator with SPARK_Mode is
                Should_Exit := True;
                return;
             end if;
-            Handle_Push1(C, Token_To_String(2));
+            Handle_Push1(C, Token_To_String(2), Should_Exit);
+            if Should_Exit then
+               return;
+            end if;
             
          elsif Cmd = "push2" then
             if NumTokens /= 3 then
@@ -530,7 +547,10 @@ package body Calculator with SPARK_Mode is
                Should_Exit := True;
                return;
             end if;
-            Handle_Push2(C, Token_To_String(2), Token_To_String(3));
+            Handle_Push2(C, Token_To_String(2), Token_To_String(3), Should_Exit);
+            if Should_Exit then
+               return;
+            end if;
             
          elsif Cmd = "pop" then
             if NumTokens /= 1 then
