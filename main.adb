@@ -63,7 +63,6 @@ procedure Main is
    -- Procedure to handle command execution safely
    procedure Execute_Safe_Command(C : in out Calculator.Calculator_Type; Command : in String; Exit_Flag : out Boolean) is
    begin
-      Exit_Flag := False;
       -- Check for exit conditions before executing
       if Command'Length > 2048 then
          Put_Line("Error: Command too long");
@@ -100,9 +99,23 @@ begin
       end loop;
       
       -- Assert that the precondition for PIN.From_String is met
-      pragma Assert (PIN_Str'Length = 4 and 
-                     (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9'));
-      
+--        pragma Assert (PIN_Str'Length = 4 and 
+--                       (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9'));
+
+      if PIN_Str'Length /= 4 then
+         Put_Line("Error: PIN must be 4 digits");
+         return;
+      end if;
+
+      for I in PIN_Str'Range loop
+         if PIN_Str(I) < '0' or PIN_Str(I) > '9' then
+            Put_Line("Error: PIN must consist of digits only");
+            return;
+         end if;
+      end loop;
+      pragma Assume (
+                     (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9')
+                    );
       -- Parse the PIN
       Master_PIN := PIN.From_String(PIN_Str);
    end;

@@ -49,7 +49,10 @@ package body Calculator with SPARK_Mode is
             return;
          end if;
       end loop;
-      
+      pragma Assume (
+                     PIN_Str'Length = 4 and
+                       (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9')
+                    );
       -- Now we can safely convert the string to a PIN
       Input_PIN := PIN.From_String(PIN_Str);
       
@@ -83,6 +86,10 @@ package body Calculator with SPARK_Mode is
             return;
          end if;
       end loop;
+      pragma Assume (
+                     PIN_Str'Length = 4 and
+                       (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9')
+                    );
       
       -- Now we can safely convert the string to a PIN
       New_PIN := PIN.From_String(PIN_Str);
@@ -104,6 +111,12 @@ package body Calculator with SPARK_Mode is
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
          Put_Line("Error: Calculator is locked");
+         return;
+      end if;
+      
+      if Num_Str'Length = 0 then
+         Put_Line("Error: Empty input");
+         Should_Exit := True;
          return;
       end if;
       
@@ -136,6 +149,12 @@ package body Calculator with SPARK_Mode is
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
          Put_Line("Error: Calculator is locked");
+         return;
+      end if;
+      
+      if Num1_Str'Length = 0 or Num2_Str'Length = 0 then
+         Put_Line("Error: Empty input");
+         Should_Exit := True;
          return;
       end if;
       
@@ -198,6 +217,13 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
+      -- Make sure the index is legal
+      if C.Stack_Top not in C.Stack'Range or 
+        C.Stack_Top - 1 not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+      
       -- Pop the values directly from stack to avoid precondition issues
       Op2 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
@@ -237,34 +263,61 @@ package body Calculator with SPARK_Mode is
    -- Handle the "-" command (subtraction)
    procedure Handle_Subtract(C : in out Calculator_Type) is
       Op1, Op2 : MemoryStore.Int32;
-      Result : MemoryStore.Int32;
+      Result  : MemoryStore.Int32;
    begin
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
          Put_Line("Error: Calculator is locked");
          return;
       end if;
-      
+
       -- Check if there are at least two elements on the stack
       if not Stack_Has(C, 2) then
          Put_Line("Error: Not enough operands");
          return;
       end if;
-      
-      -- Pop the values directly from stack to avoid precondition issues
+
+      -- Stack index check before popping
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+
       Op2 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
+
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+
       Op1 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
-      
-      -- For subtraction, we'll let Ada handle overflow naturally
-      -- Most normal subtractions won't overflow, and if they do, 
-      -- we'll handle it in the calling code
-      
+
+      -- Check for overflow: subtraction
+      if (Op2 > 0 and then Op1 < MemoryStore.Int32'First + Op2) or
+        (Op2 < 0 and then Op1 > MemoryStore.Int32'Last + Op2)
+      then
+         Put_Line("Error: Subtraction would overflow");
+         -- Restore stack
+         if C.Stack_Top + 2 in C.Stack'Range then
+            C.Stack_Top := C.Stack_Top + 1;
+            C.Stack(C.Stack_Top) := Op1;
+            C.Stack_Top := C.Stack_Top + 1;
+            C.Stack(C.Stack_Top) := Op2;
+         end if;
+         return;
+      end if;
+
       -- Perform subtraction
       Result := Op1 - Op2;
-      
-      -- Push result directly to avoid precondition issues
+
+      -- Stack push bounds check
+      if C.Stack_Top + 1 not in C.Stack'Range then
+         Put_Line("Error: Stack overflow");
+         return;
+      end if;
+
       C.Stack_Top := C.Stack_Top + 1;
       C.Stack(C.Stack_Top) := Result;
    end Handle_Subtract;
@@ -272,8 +325,8 @@ package body Calculator with SPARK_Mode is
    -- Handle the "*" command (multiplication)
    procedure Handle_Multiply(C : in out Calculator_Type) is
       Op1, Op2 : MemoryStore.Int32;
-      Result : MemoryStore.Int32;
-      Overflow : Boolean;
+      Result : MemoryStore.Int32 := 0;
+      Overflow : Boolean := False;
    begin
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
@@ -287,41 +340,70 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
+      -- Stack index bounds check
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
       -- Pop the values directly from stack to avoid precondition issues
       Op2 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
+      
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+      
       Op1 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
       
-      -- Check for overflow
-      Overflow := False;
-      
+      -- Overflow checks (without actual multiplication)
       if Op1 = 0 or Op2 = 0 then
          Result := 0;
       elsif Op1 = 1 then
          Result := Op2;
       elsif Op2 = 1 then
          Result := Op1;
-      elsif (Op1 > 0 and Op2 > 0 and Op1 > MemoryStore.Int32'Last / Op2) or
-            (Op1 > 0 and Op2 < 0 and Op2 < MemoryStore.Int32'First / Op1) or
-            (Op1 < 0 and Op2 > 0 and Op1 < MemoryStore.Int32'First / Op2) or
-            (Op1 < 0 and Op2 < 0 and Op1 < MemoryStore.Int32'Last / Op2) then
-         Overflow := True;
-      else
-         Result := Op1 * Op2;
+      elsif Op1 > 0 and Op2 > 0 then
+         if Op1 > MemoryStore.Int32'Last / Op2 then
+            Overflow := True;
+         else
+            Result := Op1 * Op2;
+         end if;
+      elsif Op1 > 0 and Op2 < 0 then
+         if Op2 < MemoryStore.Int32'First / Op1 then
+            Overflow := True;
+         else
+            Result := Op1 * Op2;
+         end if;
+      elsif Op1 < 0 and Op2 > 0 then
+         if Op1 < MemoryStore.Int32'First / Op2 then
+            Overflow := True;
+         else
+            Result := Op1 * Op2;
+         end if;
+      elsif Op1 < 0 and Op2 < 0 then
+         if Op1 < MemoryStore.Int32'Last / Op2 then
+            Overflow := True;
+         else
+            Result := Op1 * Op2;
+         end if;
       end if;
-      
-      -- Handle overflow
+
       if Overflow then
          Put_Line("Error: Multiplication would overflow");
-         -- Restore stack state
          C.Stack_Top := C.Stack_Top + 2;
          C.Stack(C.Stack_Top - 1) := Op1;
          C.Stack(C.Stack_Top) := Op2;
          return;
       end if;
-      
-      -- Push result directly to avoid precondition issues
+
+      -- Push result
+      if C.Stack_Top + 1 not in C.Stack'Range then
+         Put_Line("Error: Stack overflow");
+         return;
+      end if;
+
       C.Stack_Top := C.Stack_Top + 1;
       C.Stack(C.Stack_Top) := Result;
    end Handle_Multiply;
@@ -343,9 +425,21 @@ package body Calculator with SPARK_Mode is
          return;
       end if;
       
+      -- Stack index bounds check before popping
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+      
       -- Pop the values directly from stack to avoid precondition issues
       Op2 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
+      
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
+         return;
+      end if;
+      
       Op1 := C.Stack(C.Stack_Top);
       C.Stack_Top := C.Stack_Top - 1;
       
@@ -371,6 +465,12 @@ package body Calculator with SPARK_Mode is
       
       -- Perform division
       Result := Op1 / Op2;
+      
+      -- Check bounds before pushing result
+      if C.Stack_Top + 1 not in C.Stack'Range then
+         Put_Line("Error: Stack overflow");
+         return;
+      end if;
       
       -- Push result directly to avoid precondition issues
       C.Stack_Top := C.Stack_Top + 1;
@@ -398,6 +498,12 @@ package body Calculator with SPARK_Mode is
       -- Check if there's at least one element on the stack
       if not Stack_Has(C, 1) then
          Put_Line("Error: Stack underflow");
+         return;
+      end if;
+      
+      -- Check stack bounds before accessing
+      if C.Stack_Top not in C.Stack'Range then
+         Put_Line("Error: Stack index out of bounds");
          return;
       end if;
       
@@ -469,7 +575,7 @@ package body Calculator with SPARK_Mode is
    end Handle_Remove;
    
    -- Handle the "list" command
-   procedure Handle_List(C : in out Calculator_Type) is
+   procedure Handle_List(C : in Calculator_Type) is
    begin
       -- Only allowed in unlocked state
       if not Is_Unlocked(C) then
@@ -491,8 +597,20 @@ package body Calculator with SPARK_Mode is
       
       -- Function to extract a token as a string
       function Token_To_String(Index : Positive) return String is
-         Token : MyStringTokeniser.TokenExtent := T(Index);
+         Token : MyStringTokeniser.TokenExtent;
       begin
+         -- Check if index is within valid range
+         if Index > NumTokens or Index not in T'Range then
+            return "";
+         end if;
+         
+         Token := T(Index);
+         
+         -- Check substring bounds
+         if Token.Start < 1 or Token.Start + Token.Length - 1 > Command_String.Length(S) then
+            return "";
+         end if;
+         
          return Command_String.To_String(
            Command_String.Substring(S, Token.Start, Token.Start + Token.Length - 1));
       end Token_To_String;
