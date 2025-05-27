@@ -65,6 +65,6 @@ private
    
    -- Check if there is space on the stack to push more elements
    function Stack_Has_Space(C : Calculator_Type; N : Positive) return Boolean is
-     (C.Stack_Top + N <= Stack_Size);
+     (N <= Stack_Size - C.Stack_Top);
    
 end Calculator; 
