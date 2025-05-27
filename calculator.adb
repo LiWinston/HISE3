@@ -20,6 +20,9 @@ package body Calculator with SPARK_Mode is
       C.Master_PIN := Master_PIN;
       C.Stack_Top := 0;
       MemoryStore.Init(C.Mem);
+      for I in C.Stack'Range loop
+         C.Stack(I) := 0;
+      end loop;
    end Init;
 
    -- Stack manipulation procedures
@@ -591,42 +594,70 @@ package body Calculator with SPARK_Mode is
    
    -- Execute a command on the calculator
    procedure Execute_Command(C : in out Calculator_Type; Command : in String; Should_Exit : out Boolean) is
-      S : Command_String.MyString := Command_String.From_String(Command);
+      S : Command_String.MyString;
       T : MyStringTokeniser.TokenArray(1..10) := (others => (Start => 1, Length => 0));
       NumTokens : Natural;
-      
-      -- Function to extract a token as a string
+
       function Token_To_String(Index : Positive) return String is
          Token : MyStringTokeniser.TokenExtent;
+         Start_Pos, End_Pos : Natural;
+         
       begin
-         -- Check if index is within valid range
-         if Index > NumTokens or Index not in T'Range then
+         if Index not in T'Range or else Index > NumTokens then
             return "";
          end if;
-         
+
          Token := T(Index);
-         
-         -- Check substring bounds
-         if Token.Start < 1 or Token.Start + Token.Length - 1 > Command_String.Length(S) then
+
+         if Token.Length = 0 then
             return "";
          end if;
+
+         Start_Pos := Token.Start;
          
-         return Command_String.To_String(
-           Command_String.Substring(S, Token.Start, Token.Start + Token.Length - 1));
+         if Token.Length = 0 then
+            return "";
+         elsif Token.Start > Command_String.Length(S) then
+            return "";
+         elsif Token.Length - 1 > Natural'Last - Token.Start then
+            return "";
+         end if;
+
+         declare
+            Adjusted_Length : Natural := Token.Length - 1;
+         begin
+            End_Pos := Token.Start + Adjusted_Length;
+         end;
+
+         if End_Pos > Command_String.Length(S) or else Start_Pos > End_Pos then
+            return "";
+         end if;
+
+         if Start_Pos < 1 or else End_Pos > Command_String.Length(S) or else Start_Pos > End_Pos then
+            return "";
+         end if;
+
+         return Command_String.To_String(Command_String.Substring(S, Start_Pos, End_Pos));
       end Token_To_String;
-      
+
    begin
       Should_Exit := False;
-      
+
+      if Command'Length > Max_Line_Length then
+         Put_Line("Error: Command too long");
+         Should_Exit := True;
+         return;
+      end if;
+
+      S := Command_String.From_String(Command);
+
       -- Tokenize the command
       MyStringTokeniser.Tokenise(Command_String.To_String(S), T, NumTokens);
-      
-      -- Empty command
+
       if NumTokens = 0 then
          return;
       end if;
-      
-      -- Extract the command name
+
       declare
          Cmd : String := Token_To_String(1);
       begin
@@ -655,6 +686,7 @@ package body Calculator with SPARK_Mode is
                return;
             end if;
             Handle_Push1(C, Token_To_String(2), Should_Exit);
+            pragma Warnings (Off, "statement has no effect");
             if Should_Exit then
                return;
             end if;
@@ -666,6 +698,7 @@ package body Calculator with SPARK_Mode is
                return;
             end if;
             Handle_Push2(C, Token_To_String(2), Token_To_String(3), Should_Exit);
+            pragma Warnings (Off, "statement has no effect");
             if Should_Exit then
                return;
             end if;
@@ -743,9 +776,13 @@ package body Calculator with SPARK_Mode is
             Handle_List(C);
             
          else
-            Put_Line("Error: Unknown command '" & Cmd & "'");
-            Should_Exit := True;
-            return;
+           declare
+               Safe_Cmd : String := (if Cmd'Length > 0 and Cmd'Length < 1000 then Cmd else "unknown");
+            begin
+               Put_Line("Error: Unknown command '" & Safe_Cmd & "'");
+            end;
+           Should_Exit := True;
+           return;
          end if;
       end;
    end Execute_Command;

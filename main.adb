@@ -61,16 +61,16 @@ procedure Main is
    Should_Exit : Boolean := False;
    
    -- Procedure to handle command execution safely
-   procedure Execute_Safe_Command(C : in out Calculator.Calculator_Type; Command : in String; Exit_Flag : out Boolean) is
+   procedure Execute_Safe_Command(C : in out Calculator.Calculator_Type; Command : in String; Should_Exit : out Boolean) is
    begin
       -- Check for exit conditions before executing
       if Command'Length > 2048 then
          Put_Line("Error: Command too long");
-         Exit_Flag := True;
+         Should_Exit := True;
          return;
       end if;
       
-      Calculator.Execute_Command(C, Command, Exit_Flag);
+      Calculator.Execute_Command(C, Command, Should_Exit);
    end Execute_Safe_Command;
    
 begin
