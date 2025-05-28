@@ -1,3 +1,9 @@
+---------------------------------------------------------------------------
+--  Assignment  : SWEN90010 Assignment 3
+--  Team: pair 58
+--  Student1: Yongchun Li, 1378156
+--  Student2: Yuxin Ren, 1393127
+---------------------------------------------------------------------------
 --  MyCommandLine.adb
 --
 --  This file implements a wrapper around Ada.Command_Line to provide

@@ -1,43 +1,90 @@
-pragma SPARK_Mode (On);
+---------------------------------------------------------------------------
+--  Assignment  : SWEN90010 Assignment 3
+--  Team: pair 58
+--  Student1: Yongchun Li, 1378156
+--  Student2: Yuxin Ren, 1393127
+---------------------------------------------------------------------------
+
+--  Security Property Report (Task 4)
+--
+--  This implementation satisfies the following key security properties:
+--
+--  1. Operation Security
+--     Claim:
+--       Arithmetic and memory-related operations can only be executed when the
+--       calculator is in the unlocked state.
+--     Enforcement:
+--       Each handler (Handle_Add, Handle_Subtract, Handle_Multiply, Handle_Divide,
+--       Handle_StoreTo, Handle_LoadFrom, Handle_Remove, Handle_List) performs
+--       an explicit check using:
+--           if not Is_Unlocked(C) then ... return;
+--       to prevent execution in the locked state.
+--
+--  2. Lock/Unlock Operation Security
+--     Claim:
+--       Lock and unlock operations require correct state and PIN verification.
+--     Enforcement:
+--       - In Handle_Unlock:
+--           * Enforces C.State = Locked
+--           * Checks input PIN matches stored Master_PIN
+--       - In Handle_Lock:
+--           * Enforces C.State = Unlocked
+--           * Updates Master_PIN to new value only on valid command
+--
+--  3. State Transition Integrity
+--     Claim:
+--       Transitions between locked and unlocked states occur only via valid
+--       authentication steps.
+--     Enforcement:
+--       - Only Handle_Unlock allows changing from Locked -> Unlocked after
+--         matching PIN.
+--       - Only Handle_Lock changes from Unlocked -> Locked and updates PIN.
+--       - No other procedure modifies the state directly.
+--
+--  4. Data Confidentiality
+--     Claim:
+--       Stack and memory contents are inaccessible while locked.
+--     Enforcement:
+--       - All handlers accessing C.Stack or C.Mem (e.g., Handle_Add, Handle_StoreTo)
+--         begin with a locked-state check via Is_Unlocked(C).
+--       - Main loop does not expose internal memory or stack.
+--
+--  5. Runtime Security
+--     Claim:
+--       Prevents runtime failures such as:
+--         * Integer overflow
+--         * Division by zero
+--         * Stack overflow/underflow
+--         * Invalid memory access
+--     Enforcement:
+--       - Integer overflow:
+--           * Checked explicitly in Handle_Add via conservative overflow guards.
+--       - Division by zero:
+--           * Checked in Handle_Divide before performing division.
+--       - Stack underflow/overflow:
+--           * Stack_Has and Stack_Has_Space used before pop/push.
+--       - Memory access:
+--           * Index checks (e.g., C.Stack_Top in C.Stack'Range) ensure safe access.
+--
+--  6. Input Format Validation
+--     Claim:
+--       PIN and numeric inputs are validated before use.
+--     Enforcement:
+--       - In Main:
+--           * PIN is validated to be 4-digit numeric string before calling From_String.
+--       - In Handle_Push1, Handle_Push2:
+--           * Use of StringToInteger.Is_Valid ensures numeric conversion safety.
+--
+--  7. SPARK Proven Absence of Runtime Errors (AoRTE)
+--     Claim:
+--       The implementation proves that no runtime exceptions can occur.
+--     Enforcement:
+--       - Use of SPARK-mode (`pragma SPARK_Mode(On)`)
+--       - Use of assertions (`pragma Assume`, checks) where required
+--       - `gnatprove` successfully completes with no unproven checks
 
 ---------------------------------------------------------------------------
---  Security Properties Report (Task 4):
---
---  This implementation satisfies the following security properties:
---
---  1. Operation Security:
---     Operations that require unlocked state (+, -, *, /, load, store, remove, list)
---     can only be executed when the calculator is in the unlocked state.
---     This is proven by the Is_Unlocked(C) precondition checks in each of these
---     operations' handler procedures.
---
---  2. Lock Operation Security:
---     The lock operation can only be executed when the calculator is unlocked.
---     This is enforced by the Is_Unlocked(C) condition check in Handle_Lock.
---     Additionally, the lock operation always updates the master PIN to the new PIN.
---     This is proven by the direct assignment of New_PIN to C.Master_PIN.
---
---  3. Unlock Operation Security:
---     The unlock operation can only be executed when the calculator is locked.
---     This is enforced by the Is_Locked(C) condition check in Handle_Unlock.
---
---  4. State Transition Integrity:
---     State transitions between locked and unlocked states can only occur through
---     proper authentication with the correct PIN. This is proven by the PIN equality
---     check before changing the state in Handle_Unlock and the explicit state change
---     in Handle_Lock.
---
---  5. Data Confidentiality:
---     Memory contents and stack operations are only accessible in the unlocked state,
---     protecting sensitive data when the calculator is locked.
---
---  6. Runtime Security:
---     All operations protect against runtime errors like integer overflow, division
---     by zero, stack overflow/underflow, and invalid memory access through explicit
---     checks and guards.
---
---  These properties are formally verified by SPARK annotations and the SPARK prover.
----------------------------------------------------------------------------
+pragma SPARK_Mode (On);
 
 with MyCommandLine;
 with MyString;
