@@ -50,18 +50,20 @@ package Calculator with SPARK_Mode is
      Pre => True,
      Post => (if PIN_Str'Length = 4 and 
               (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9') and
-              PIN.From_String(PIN_Str) = Get_Master_PIN(C'Old) and Is_Locked(C'Old) 
-             then Is_Unlocked(C)
-             else Get_State(C) = Get_State(C'Old));
+              Is_Locked(C'Old) then
+                (if PIN.From_String(PIN_Str) = Get_Master_PIN(C'Old) then
+                   Is_Unlocked(C)
+                 else Get_State(C) = Get_State(C'Old))
+              else Get_State(C) = Get_State(C'Old));
    
    -- Handle the "lock" command - Security contract
    procedure Handle_Lock(C : in out Calculator_Type; PIN_Str : in String; Should_Exit : out Boolean) with
      Pre => True,
      Post => (if PIN_Str'Length = 4 and 
               (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9') and
-              Is_Unlocked(C'Old) 
-             then (Is_Locked(C) and Get_Master_PIN(C) = PIN.From_String(PIN_Str))
-             else Get_State(C) = Get_State(C'Old));
+              Is_Unlocked(C'Old) then
+                (Is_Locked(C) and Get_Master_PIN(C) = PIN.From_String(PIN_Str))
+              else Get_State(C) = Get_State(C'Old));
    
    -- Handle the "+" command (addition) - Security contract
    procedure Handle_Add(C : in out Calculator_Type) with
