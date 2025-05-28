@@ -54,7 +54,8 @@ package Calculator with SPARK_Mode is
                 (if PIN.From_String(PIN_Str) = Get_Master_PIN(C'Old) then
                    Is_Unlocked(C)
                  else Get_State(C) = Get_State(C'Old))
-              else Get_State(C) = Get_State(C'Old));
+              else Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "lock" command - Security contract
    procedure Handle_Lock(C : in out Calculator_Type; PIN_Str : in String; Should_Exit : out Boolean) with
@@ -63,42 +64,67 @@ package Calculator with SPARK_Mode is
               (for all I in PIN_Str'Range => PIN_Str(I) >= '0' and PIN_Str(I) <= '9') and
               Is_Unlocked(C'Old) then
                 (Is_Locked(C) and Get_Master_PIN(C) = PIN.From_String(PIN_Str))
-              else Get_State(C) = Get_State(C'Old));
+              else Get_State(C) = Get_State(C'Old) and Get_Master_PIN(C) = Get_Master_PIN(C'Old));
    
    -- Handle the "+" command (addition) - Security contract
    procedure Handle_Add(C : in out Calculator_Type) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "-" command (subtraction) - Security contract
    procedure Handle_Subtract(C : in out Calculator_Type) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "*" command (multiplication) - Security contract
    procedure Handle_Multiply(C : in out Calculator_Type) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "/" command (division) - Security contract
    procedure Handle_Divide(C : in out Calculator_Type) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "storeTo" command - Security contract
    procedure Handle_StoreTo(C : in out Calculator_Type; Loc_Str : in String) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "loadFrom" command - Security contract
    procedure Handle_LoadFrom(C : in out Calculator_Type; Loc_Str : in String) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "remove" command - Security contract
    procedure Handle_Remove(C : in out Calculator_Type; Loc_Str : in String) with
      Pre => True,
-     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old));
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
+   
+   -- Handle the "pop" command - Security contract
+   procedure Handle_Pop(C : in out Calculator_Type) with
+     Pre => True,
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
+   
+   -- Handle the "push1" command - Security contract
+   procedure Handle_Push1(C : in out Calculator_Type; Num_Str : in String; Should_Exit : out Boolean) with
+     Pre => True,
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
+   
+   -- Handle the "push2" command - Security contract
+   procedure Handle_Push2(C : in out Calculator_Type; Num1_Str : in String; Num2_Str : in String; Should_Exit : out Boolean) with
+     Pre => True,
+     Post => (if not Is_Unlocked(C'Old) then Get_State(C) = Get_State(C'Old)) and
+             Get_Master_PIN(C) = Get_Master_PIN(C'Old);
    
    -- Handle the "list" command - Security contract
    procedure Handle_List(C : in Calculator_Type) with
